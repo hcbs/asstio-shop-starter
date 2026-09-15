@@ -38,6 +38,11 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# Next.js rewrites these on every `next dev` / `next build` (AGENTS.md is its own agent rules,
+# CLAUDE.md is a one-line include of it). Generated, version-specific, and not ours to commit.
+/AGENTS.md
+/CLAUDE.md
 next-env.d.ts
 
 # …but the example is committed.

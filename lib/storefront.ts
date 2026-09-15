@@ -13,16 +13,27 @@ type Sort = NonNullable<NonNullable<paths["/v1/products"]["get"]["parameters"]["
  */
 export async function storefront() {
   const { isEnabled } = await draftMode();
-  const siteKey = isEnabled ? process.env.STOREFRONT_PREVIEW_KEY : process.env.STOREFRONT_SITE_KEY;
-  if (!siteKey) throw new Error("STOREFRONT_SITE_KEY (and STOREFRONT_PREVIEW_KEY for draft mode) must be set.");
+  const siteKey = requiredEnv(isEnabled ? "STOREFRONT_PREVIEW_KEY" : "STOREFRONT_SITE_KEY");
   return createStorefrontClient({
-    baseUrl: process.env.STOREFRONT_API_URL ?? "http://localhost:5041",
+    baseUrl: apiBaseUrl(),
     siteKey,
     market: process.env.STOREFRONT_MARKET,
     // Draft content changes while you look at it, so it is never cached; published content is revalidated.
     fetch: (input, init) => fetch(input, { ...init, next: { revalidate: isEnabled ? 0 : 60 } }),
   });
 }
+
+export const apiBaseUrl = () => process.env.STOREFRONT_API_URL ?? "http://localhost:5041";
+
+/** An environment variable that has to be there, with a message that says which one — never a bare `!`. */
+export function requiredEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} must be set (see .env.example).`);
+  return value;
+}
+
+/** Codes the API means as "ask again shortly": a warming registry, or an index mid-rebuild. */
+export const isRetryable = (code: string) => code === "INDEX_UNAVAILABLE" || code === "SITE_REGISTRY_WARMING";
 
 /** The API answers 503 INDEX_UNAVAILABLE while an index is rebuilt — a retry, not a failure of the page. */
 export const REBUILDING = Symbol("index rebuilding");
@@ -37,7 +48,7 @@ export function unwrap<T>(result: { data?: T; error?: Problem }): Loaded<T> {
   if (result.error) {
     const { code } = result.error;
     if (code === "PRODUCT_NOT_FOUND" || code === "COLLECTION_NOT_FOUND" || code === "NOT_FOUND") notFound();
-    if (code === "INDEX_UNAVAILABLE" || code === "SITE_REGISTRY_WARMING") return REBUILDING;
+    if (isRetryable(code)) return REBUILDING;
     throw new Error(`${code}: ${result.error.detail ?? result.error.title}`);
   }
   if (result.data === undefined) throw new Error("The Storefront API returned neither data nor a problem.");

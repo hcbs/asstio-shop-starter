@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import type { components } from "@asstio/storefront";
 import { withParam, type SearchParams } from "@/lib/urls";
 import { Facets } from "./Facets";
@@ -17,6 +18,11 @@ export function Listing({
   searchParams: SearchParams;
   listing: ListingResponse;
 }) {
+  // A search rule in Asstio can point a query somewhere else entirely ("rea" → the campaign collection). The
+  // API reports it; ignoring it would silently drop a feature the shop configured. Top level, never in a try:
+  // redirect() works by throwing.
+  if (listing.redirect) redirect(listing.redirect);
+
   return (
     <div>
       {/* A near-miss query still answers 200 and says what it ignored, so the page says so too instead of

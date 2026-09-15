@@ -31,8 +31,16 @@ export function Facets({
           <ul>
             {appliedFilters.map((applied) => (
               <li key={`${applied.facet}:${applied.value}`}>
+                {/* The chip removes the value with the facet's own match semantics — a "single" facet clears,
+                    a multi-select drops just this value — looked up rather than assumed. */}
                 <Link
-                  href={toggleFacet(pathname, searchParams, applied.facet, applied.value, "any")}
+                  href={toggleFacet(
+                    pathname,
+                    searchParams,
+                    applied.facet,
+                    applied.value,
+                    facets.find((facet) => facet.key === applied.facet)?.match ?? "any",
+                  )}
                   rel="nofollow"
                 >
                   {applied.label} ✕
@@ -50,7 +58,7 @@ export function Facets({
         <section key={facet.key}>
           <h3>{facet.label}</h3>
           {facet.type === "range" && facet.range ? (
-            <RangeFacet pathname={pathname} searchParams={searchParams} facet={facet} />
+            <RangeFacet pathname={pathname} searchParams={searchParams} facet={facet} range={facet.range} />
           ) : (
             <ValueList pathname={pathname} searchParams={searchParams} facet={facet} values={facet.values} />
           )}
@@ -106,12 +114,14 @@ function RangeFacet({
   pathname,
   searchParams,
   facet,
+  range,
 }: {
   pathname: string;
   searchParams: SearchParams;
   facet: Facet;
+  // Passed in rather than read off `facet`, so the caller's null check is what the type says, not a `!` here.
+  range: NonNullable<Facet["range"]>;
 }) {
-  const range = facet.range!;
   const selected = range.selected;
   const applied = selectedValues(searchParams, facet.key).length > 0;
   return (
